@@ -11,11 +11,13 @@ import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import lombok.AllArgsConstructor;
 
-import java.util.Scanner;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 
 /**
  * @author Sattya
- * create at 2/13/2025 11:30 PM
+ * Created on 2/13/2025 11:30 PM
  */
 @AllArgsConstructor
 public class ChatClient {
@@ -23,25 +25,35 @@ public class ChatClient {
     private final int port;
 
     public void start() throws InterruptedException {
-        EventLoopGroup group = new NioEventLoopGroup();
-        try {
+
+        try(EventLoopGroup group = new NioEventLoopGroup();) {
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.group(group)
                     .channel(NioSocketChannel.class)
                     .handler(new ChannelInitializer<Channel>() {
                         @Override
-                        protected void initChannel(Channel ch) throws Exception {
-                            ch.pipeline().addLast(new StringDecoder(),new StringEncoder(),new ChatClientHandler());
+                        protected void initChannel(Channel ch) {
+                            ch.pipeline().addLast(new StringDecoder(), new StringEncoder(), new ChatClientHandler());
                         }
                     });
-            Channel channel = bootstrap.connect(host,port).sync().channel();
-            Scanner scanner = new Scanner(System.in);
-            while (scanner.hasNextLine()){
-                String message = scanner.nextLine();
-                channel.writeAndFlush(message);
+
+            Channel channel = bootstrap.connect(host, port).sync().channel();
+
+            // Use try-with-resources for BufferedReader to ensure it is closed
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
+                String message;
+                while ((message = reader.readLine()) != null) {
+                    if (message.equalsIgnoreCase("/exit")) {
+                        System.out.println("Exiting chat...");
+                        break;
+                    }
+                    channel.writeAndFlush(message + "\r\n");
+                }
             }
-        } finally {
-            group.shutdownGracefully();
+
+            channel.close().sync();  // Gracefully close the connection
+        } catch (IOException e) {
+            throw new RuntimeException("Error reading user input", e);
         }
     }
 
