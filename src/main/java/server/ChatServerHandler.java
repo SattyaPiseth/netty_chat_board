@@ -39,6 +39,7 @@ public class ChatServerHandler extends SimpleChannelInboundHandler<String> {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        System.out.println("Client disconnected unexpectedly: "+cause.getMessage());
         cause.printStackTrace();
         ctx.close();
     }
